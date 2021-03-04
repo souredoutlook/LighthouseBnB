@@ -5,10 +5,9 @@ const pool = new Pool({
   password: '123',
   host: 'localhost',
   database: 'lightbnb'
-})
+});
 
 const properties = require('./json/properties.json');
-const users = require('./json/users.json');
 
 /// Users
 
@@ -25,11 +24,11 @@ const getUserWithEmail = function(email) {
   WHERE email = $1;
   `;
   return pool.query(queryString, values)
-  .then(res => {
-    if (res.rows) return res.rows[0]
-    else return null
-  });
-}
+    .then(res => {
+      if (res.rows) return res.rows[0];
+      else return null;
+    });
+};
 exports.getUserWithEmail = getUserWithEmail;
 
 /**
@@ -45,11 +44,11 @@ const getUserWithId = function(id) {
   WHERE id = $1;
   `;
   return pool.query(queryString, values)
-  .then(res => {
-    if (res.rows) return res.rows[0]
-    else return null
-  });
-}
+    .then(res => {
+      if (res.rows) return res.rows[0];
+      else return null;
+    });
+};
 exports.getUserWithId = getUserWithId;
 
 
@@ -66,11 +65,11 @@ const addUser =  function(user) {
   RETURNING *;
   `;
   return pool.query(queryString, values)
-  .then(res => {
-    if (res.rows) return res.rows[0]
-    else return null
-  });
-}
+    .then(res => {
+      if (res.rows) return res.rows[0];
+      else return null;
+    });
+};
 exports.addUser = addUser;
 
 /// Reservations
@@ -80,9 +79,21 @@ exports.addUser = addUser;
  * @param {string} guest_id The id of the user.
  * @return {Promise<[{}]>} A promise to the reservations.
  */
-const getAllReservations = function(guest_id, limit = 10) {
-  return getAllProperties(null, 2);
-}
+const getAllReservations = function(guestID, limit = 10) {
+  const values = [guestID, limit];
+  const queryString = `
+    SELECT properties.*, reservations.*, AVG(rating)
+    FROM reservations
+    JOIN properties ON reservations.property_id = properties.id
+    JOIN property_reviews ON properties.id = property_reviews.property_id
+    WHERE reservations.guest_id = $1 AND end_date < now()::date
+    GROUP BY properties.id, reservations.id
+    ORDER BY start_date
+    LIMIT $2;
+  `;
+  return pool.query(queryString, values)
+    .then(res => res.rows);
+};
 exports.getAllReservations = getAllReservations;
 
 /// Properties
@@ -94,15 +105,15 @@ exports.getAllReservations = getAllReservations;
  * @return {Promise<[{}]>}  A promise to the properties.
  */
 const getAllProperties = function(options, limit = 10) {
-  const values = [limit]
+  const values = [limit];
   const queryString = `
-  SELECT *
-  FROM properties
-  LIMIT $1
+    SELECT *
+    FROM properties
+    LIMIT $1
   `;
   return pool.query(queryString, values)
-  .then(res => res.rows);
-}
+    .then(res => res.rows);
+};
 exports.getAllProperties = getAllProperties;
 
 
@@ -116,5 +127,5 @@ const addProperty = function(property) {
   property.id = propertyId;
   properties[propertyId] = property;
   return Promise.resolve(property);
-}
+};
 exports.addProperty = addProperty;
