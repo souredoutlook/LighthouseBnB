@@ -1,13 +1,4 @@
-const { Pool } = require('pg');
-
-const pool = new Pool({
-  user: 'vagrant',
-  password: '123',
-  host: 'localhost',
-  database: 'lightbnb'
-});
-
-const properties = require('./json/properties.json');
+const db = require('./db/index.js');
 
 /// Users
 
@@ -23,7 +14,7 @@ const getUserWithEmail = function(email) {
   FROM users
   WHERE email = $1;
   `;
-  return pool.query(queryString, values)
+  return db.query(queryString, values)
     .then(res => {
       if (res.rows) return res.rows[0];
       else return null;
@@ -43,7 +34,7 @@ const getUserWithId = function(id) {
   FROM users
   WHERE id = $1;
   `;
-  return pool.query(queryString, values)
+  return db.query(queryString, values)
     .then(res => {
       if (res.rows) return res.rows[0];
       else return null;
@@ -64,7 +55,7 @@ const addUser =  function(user) {
   VALUES ($1, $2, $3)
   RETURNING *;
   `;
-  return pool.query(queryString, values)
+  return db.query(queryString, values)
     .then(res => {
       if (res.rows) return res.rows[0];
       else return null;
@@ -91,7 +82,7 @@ const getAllReservations = function(guestID, limit = 10) {
     ORDER BY start_date
     LIMIT $2;
   `;
-  return pool.query(queryString, values)
+  return db.query(queryString, values)
     .then(res => res.rows);
 };
 exports.getAllReservations = getAllReservations;
@@ -120,17 +111,17 @@ const getAllProperties = function(options, limit = 10) {
   
   if (options.minimum_price_per_night) {
     queryParams.push(Number(options.minimum_price_per_night));
-    queryString += `AND cost_per_night >= $${queryParams.length} `
+    queryString += `AND cost_per_night >= $${queryParams.length} `;
   }
   
   if (options.maximum_price_per_night) {
     queryParams.push(Number(options.maximum_price_per_night));
-    queryString += `AND cost_per_night <= $${queryParams.length} `
+    queryString += `AND cost_per_night <= $${queryParams.length} `;
   }
   
   if (options.owner_id) {
     queryParams.push(Number(options.owner_id));
-    queryString += `AND owner_id = $${queryParams.length} `
+    queryString += `AND owner_id = $${queryParams.length} `;
   }
 
   queryString += `
@@ -148,9 +139,9 @@ const getAllProperties = function(options, limit = 10) {
   LIMIT $${queryParams.length};
   `;
 
-  return pool.query(queryString, queryParams)
-  .then(res => res.rows);
-}
+  return db.query(queryString, queryParams)
+    .then(res => res.rows);
+};
 
 exports.getAllProperties = getAllProperties;
 
@@ -183,9 +174,8 @@ const addProperty = function(property) {
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
     RETURNING *;
   `;
-  return pool.query(queryString, values)
+  return db.query(queryString, values)
     .then(res => {
-      console.log(res.rows)
       if (res.rows) return res.rows[0];
       else return null;
     });
