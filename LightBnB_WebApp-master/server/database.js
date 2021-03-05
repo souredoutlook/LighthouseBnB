@@ -84,8 +84,8 @@ const getAllReservations = function(guestID, limit = 10) {
   const queryString = `
     SELECT properties.*, reservations.*, AVG(rating)
     FROM reservations
-    JOIN properties ON reservations.property_id = properties.id
-    JOIN property_reviews ON properties.id = property_reviews.property_id
+    FULL OUTER JOIN properties ON reservations.property_id = properties.id
+    FULL OUTER JOIN property_reviews ON properties.id = property_reviews.property_id
     WHERE reservations.guest_id = $1 AND end_date < now()::date
     GROUP BY properties.id, reservations.id
     ORDER BY start_date
@@ -105,50 +105,34 @@ exports.getAllReservations = getAllReservations;
  * @return {Promise<[{}]>}  A promise to the properties.
  */
 const getAllProperties = function(options, limit = 10) {
-  // 1
   const queryParams = [];
-  // 2
   let queryString = `
-  SELECT properties.*, AVG(property_reviews.rating) as average_rating
-  FROM properties
-  JOIN property_reviews ON properties.id = property_id
-  `;
+    SELECT properties.*, AVG(property_reviews.rating) as average_rating
+    FROM properties
+    FULL OUTER JOIN property_reviews ON properties.id = property_id
+    WHERE TRUE `;
 
-  // 3
   if (options.city) {
     queryParams.push(`%${options.city}%`);
-    queryString += `WHERE city ILIKE $${queryParams.length} `;
+    queryString += `AND city ILIKE $${queryParams.length} `;
   }
 
   
   if (options.minimum_price_per_night) {
     queryParams.push(Number(options.minimum_price_per_night));
-    if (queryParams.length > 1){
-      queryString += `AND cost_per_night >= $${queryParams.length} `
-    } else {
-      queryString += `WHERE cost_per_night >= $${queryParams.length} `;
-    }
+    queryString += `AND cost_per_night >= $${queryParams.length} `
   }
   
   if (options.maximum_price_per_night) {
     queryParams.push(Number(options.maximum_price_per_night));
-    if (queryParams.length > 1){
-      queryString += `AND cost_per_night <= $${queryParams.length} `
-    } else {
-      queryString += `WHERE cost_per_night <= $${queryParams.length} `;
-    }
+    queryString += `AND cost_per_night <= $${queryParams.length} `
   }
   
   if (options.owner_id) {
     queryParams.push(Number(options.owner_id));
-    if (queryParams.length > 1){
-      queryString += `AND owner_id = $${queryParams.length} `
-    } else {
-      queryString += `WHERE owner_id = $${queryParams.length} `;
-    }
+    queryString += `AND owner_id = $${queryParams.length} `
   }
 
-  // 4
   queryString += `
   GROUP BY properties.id
   `;
@@ -163,10 +147,7 @@ const getAllProperties = function(options, limit = 10) {
   ORDER BY cost_per_night
   LIMIT $${queryParams.length};
   `;
-  // 5
-  console.log(queryString, queryParams);
 
-  // 6
   return pool.query(queryString, queryParams)
   .then(res => res.rows);
 }
@@ -180,9 +161,33 @@ exports.getAllProperties = getAllProperties;
  * @return {Promise<{}>} A promise to the property.
  */
 const addProperty = function(property) {
-  const propertyId = Object.keys(properties).length + 1;
-  property.id = propertyId;
-  properties[propertyId] = property;
-  return Promise.resolve(property);
+  if (property.description === undefined) property.description = '';
+  const values = [
+    property.owner_id,
+    property.title,
+    property.description,
+    property.thumbnail_photo_url,
+    property.cover_photo_url,
+    property.cost_per_night,
+    property.parking_spaces,
+    property.number_of_bathrooms,
+    property.number_of_bedrooms,
+    property.country,
+    property.street,
+    property.city,
+    property.province,
+    property.post_code
+  ];
+  const queryString = `
+    INSERT INTO properties (owner_id, title, description, thumbnail_photo_url, cover_photo_url, cost_per_night, parking_spaces, number_of_bathrooms, number_of_bedrooms, country, street, city, province, post_code)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+    RETURNING *;
+  `;
+  return pool.query(queryString, values)
+    .then(res => {
+      console.log(res.rows)
+      if (res.rows) return res.rows[0];
+      else return null;
+    });
 };
 exports.addProperty = addProperty;
